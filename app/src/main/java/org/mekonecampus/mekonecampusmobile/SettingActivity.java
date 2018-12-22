@@ -7,6 +7,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
 
@@ -16,17 +17,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
+import static org.mekonecampus.mekonecampusmobile.ViewActivity.arto;
+
 public class SettingActivity extends AppCompatActivity {
     static Setting setting = new Setting();
+    static String online;
+    static String status;
+    static String alert;
     Switch switchOnline;
     Switch switchAlert;
-    Switch switchLocation;
+    Switch switchStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +49,7 @@ public class SettingActivity extends AppCompatActivity {
 
         switchAlert = (Switch) findViewById(R.id.alert);
         switchOnline = (Switch) findViewById(R.id.online);
-        switchLocation = (Switch) findViewById(R.id.location);
+        switchStatus = (Switch) findViewById(R.id.status);
 
         if(setting.Notification != null) {
             if (setting.Notification.equals("Yes")) {
@@ -56,6 +63,13 @@ public class SettingActivity extends AppCompatActivity {
                 switchOnline.setChecked(true);
             } else {
                 switchOnline.setChecked(false);
+            }
+        }
+        if(setting.Status != null) {
+            if (setting.Status.equals("active")) {
+                switchStatus.setChecked(true);
+            } else {
+                switchStatus.setChecked(false);
             }
         }
 
@@ -77,6 +91,11 @@ public class SettingActivity extends AppCompatActivity {
         });
         btnSave.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                try {
+                    new SettingActivity.UpdateSettingsTask(SettingActivity.this, setting).execute();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 Toast.makeText(SettingActivity.this, "Settings save successful!", Toast.LENGTH_LONG).show();
             }
         });
@@ -86,11 +105,49 @@ public class SettingActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+        // Set a checked change listener for switch button
+        switchAlert.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    alert = "Yes";
+                    Toast.makeText(SettingActivity.this, "...turning alert on!", Toast.LENGTH_SHORT).show();
+                } else {
+                    alert = "No";
+                    Toast.makeText(SettingActivity.this, "...turning alert off!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        switchOnline.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    online = "On";
+                    Toast.makeText(SettingActivity.this, "...turning online on!", Toast.LENGTH_SHORT).show();
+                } else {
+                    online = "Off";
+                    Toast.makeText(SettingActivity.this, "...turning online off!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        switchStatus.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    status = "active";
+                    Toast.makeText(SettingActivity.this, "...turning location on!", Toast.LENGTH_SHORT).show();
+                } else {
+                    status = "inactive";
+                    Toast.makeText(SettingActivity.this, "...turning location off!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
 
     public static Setting CallMekone() throws IOException {
         try {
-            URL url = new URL("http://mekonecampusapi.azurewebsites.net/api/Settings?email=emekone1990@gmail.com");
+            URL url = new URL("http://mekonecampusapi.azurewebsites.net/api/Settings?Email=emekone1990@gmail.com");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
@@ -104,7 +161,6 @@ public class SettingActivity extends AppCompatActivity {
             //System.out.println("Output from Server .... \n");
             while ((output = br.readLine()) != null) {
                 ObjectMapper mapper = new ObjectMapper();
-                //articles = mapper.readValue(output, List<Article.class>);
                 setting = mapper.readValue(output, new TypeReference<Setting>() {});
             }
             conn.disconnect();
@@ -139,4 +195,62 @@ public class SettingActivity extends AppCompatActivity {
         }
     }
 
+    private static class UpdateSettingsTask extends AsyncTask<Void, Void, Setting> {
+        private WeakReference<Activity> weakActivity;
+        private Setting setting;
+        UpdateSettingsTask(Activity activity, Setting setting) {
+            weakActivity = new WeakReference<>(activity);
+            this.setting = setting;
+        }
+        @Override
+        protected Setting doInBackground(Void... voids) {
+            Activity activity = weakActivity.get();
+            if (activity == null) {
+                return null;
+            }
+            try {
+                setting = CallMekone2();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return setting;
+        }
+    }
+
+    public static Setting CallMekone2() throws IOException {
+        try {
+            setting.Status = status;
+            setting.OnlineStatus = online;
+            setting.Notification = alert;
+            URL url = new URL("http://mekonecampusapi.azurewebsites.net/api/Settings");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);
+            conn.setRequestMethod("PUT");
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            ObjectMapper mapper = new ObjectMapper();
+            String input = mapper.writeValueAsString(setting);
+            OutputStream os = conn.getOutputStream();
+            os.write(input.getBytes());
+            os.write(input.getBytes("UTF-8"));
+            os.flush();
+
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new RuntimeException("Failed : HTTP error code : "
+                        + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output;
+            //System.out.println("Output from Server .... \n");
+            while ((output = br.readLine()) != null) {
+                setting = mapper.readValue(output, new TypeReference<Setting>() {});
+            }
+            conn.disconnect();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return setting;
+    }
 }
