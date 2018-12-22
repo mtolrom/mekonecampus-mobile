@@ -3,6 +3,21 @@
 # Check https://circleci.com/docs/2.0/language-java/ for more details
 #
 version: 2
+references:
+
+  ## Cache
+
+  cache_key: &cache_key
+    key: cache-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}-{{ checksum "app/build.gradle" }}
+  restore_cache: &restore_cache
+    restore_cache:
+      <<: *cache_key
+  save_cache: &save_cache
+    save_cache:
+      <<: *cache_key
+      paths:
+        - ~/.gradle
+        - ~/.m2
 jobs:
   build:
     docker:
