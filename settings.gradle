@@ -1,1 +1,1 @@
-include ':app'
+include ':app', ':mekonecampus_dynamic_feature', ':mekonecampus_dynamic_feature2'

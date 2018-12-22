@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">MekoneCampusMobile</string>
+    <string name="aboutus">
+        MekoneCampus is a non-profit organization created by a member of Chadian diaspora to educate, motivate and inspire young Chadians. The org manages one community center in Moundou, Chad.
+    </string>
+    <string name="campus">
+        MekoneCampus is a non-profit organization created by a member of Chadian diaspora to educate, motivate and inspire young Chadians. The org manages one community center in Moundou, Chad.
+    </string>
+    <string name="title_mekonecampus_dynamic_feature">MekoneCampusModuleTitle</string>
+    <string name="title_mekonecampus_dynamic_feature2">MekoneCampusModuleTitle</string>
 </resources>
