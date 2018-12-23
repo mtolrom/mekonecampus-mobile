@@ -74,31 +74,6 @@ public class ListActivity extends AppCompatActivity {
         category4.categoryPicture = R.drawable.logoenglish;
         categories.add(category4);
 
-        /*Category category5 = new Category();
-        category5.categoryName = "Entreprenariat";
-        category5.categoryPicture = R.drawable.logofrench;
-        categories.add(category5);
-
-        Category category6 = new Category();
-        category6.categoryName = "6";
-        category6.categoryPicture = R.drawable.logoenglish;
-        categories.add(category6);
-
-        Category category7 = new Category();
-        category7.categoryName = "7";
-        category7.categoryPicture = R.drawable.ic_desktop_mac_black_24dp;
-        categories.add(category7);
-
-        Category category8 = new Category();
-        category8.categoryName = "8";
-        category8.categoryPicture = R.drawable.ic_block_black_24dp;
-        categories.add(category8);
-
-        Category category9 = new Category();
-        category9.categoryName = "9";
-        category9.categoryPicture = R.drawable.ic_block_black_24dp;
-        categories.add(category9);*/
-
         RecyclerView myRecyclerview = (RecyclerView) findViewById(R.id.recyclerView_id);
         RecyclerViewAdapter myAdapter = new RecyclerViewAdapter(this,categories);
         myRecyclerview.setLayoutManager(new GridLayoutManager(this,2));

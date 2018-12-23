@@ -2,7 +2,9 @@ package org.mekonecampus.mekonecampusmobile;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -14,10 +16,13 @@ import android.widget.Toast;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -40,37 +45,15 @@ public class SettingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
 
+        switchAlert = (Switch) findViewById(R.id.alert);
+        switchOnline = (Switch) findViewById(R.id.online);
+        switchStatus = (Switch) findViewById(R.id.status);
+
         //call api
         try {
             new SettingActivity.GetSettings(this).execute();
         } catch (Exception e) {
             e.printStackTrace();
-        }
-
-        switchAlert = (Switch) findViewById(R.id.alert);
-        switchOnline = (Switch) findViewById(R.id.online);
-        switchStatus = (Switch) findViewById(R.id.status);
-
-        if(setting.Notification != null) {
-            if (setting.Notification.equals("Yes")) {
-                switchAlert.setChecked(true);
-            } else {
-                switchAlert.setChecked(false);
-            }
-        }
-        if(setting.OnlineStatus != null) {
-            if (setting.OnlineStatus.equals("On")) {
-                switchOnline.setChecked(true);
-            } else {
-                switchOnline.setChecked(false);
-            }
-        }
-        if(setting.Status != null) {
-            if (setting.Status.equals("active")) {
-                switchStatus.setChecked(true);
-            } else {
-                switchStatus.setChecked(false);
-            }
         }
 
         final Button btnNotifications = findViewById(R.id.notifications);
@@ -86,6 +69,11 @@ public class SettingActivity extends AppCompatActivity {
         });
         btnReset.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                try {
+                    new SettingActivity.ResetSettingsTask(SettingActivity.this, setting).execute();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 Toast.makeText(SettingActivity.this, "Settings reset successful!", Toast.LENGTH_LONG).show();
             }
         });
@@ -138,11 +126,40 @@ public class SettingActivity extends AppCompatActivity {
                     status = "active";
                     Toast.makeText(SettingActivity.this, "...turning location on!", Toast.LENGTH_SHORT).show();
                 } else {
-                    status = "inactive";
+                    status = "active";
                     Toast.makeText(SettingActivity.this, "...turning location off!", Toast.LENGTH_SHORT).show();
                 }
             }
         });
+
+        //SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+        //final SharedPreferences.Editor e = settings.edit();
+        //e.putBoolean("switch", false);
+        //e.commit();
+
+        if(setting != null) {
+            if (setting.Notification != null) {
+                if (setting.Notification.equals("Yes")) {
+                    switchAlert.setChecked(true);
+                } else {
+                    switchAlert.setChecked(false);
+                }
+            }
+            if (setting.OnlineStatus != null) {
+                if (setting.OnlineStatus.equals("On")) {
+                    switchOnline.setChecked(true);
+                } else {
+                    switchOnline.setChecked(false);
+                }
+            }
+            if (setting.Status != null) {
+                if (setting.Status.equals("active")) {
+                    switchStatus.setChecked(true);
+                } else {
+                    switchStatus.setChecked(false);
+                }
+            }
+        }
     }
 
     public static Setting CallMekone() throws IOException {
@@ -151,14 +168,13 @@ public class SettingActivity extends AppCompatActivity {
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
-            if (conn.getResponseCode() != 200) {
+            /*if (conn.getResponseCode() != 200) {
                 throw new RuntimeException("Failed : HTTP error code : "
                         + conn.getResponseCode());
-            }
+            }*/
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     (conn.getInputStream())));
             String output;
-            //System.out.println("Output from Server .... \n");
             while ((output = br.readLine()) != null) {
                 ObjectMapper mapper = new ObjectMapper();
                 setting = mapper.readValue(output, new TypeReference<Setting>() {});
@@ -217,11 +233,35 @@ public class SettingActivity extends AppCompatActivity {
         }
     }
 
+    private static class ResetSettingsTask extends AsyncTask<Void, Void, Setting> {
+        private WeakReference<Activity> weakActivity;
+        private Setting setting;
+        ResetSettingsTask(Activity activity, Setting setting) {
+            weakActivity = new WeakReference<>(activity);
+            this.setting = setting;
+        }
+        @Override
+        protected Setting doInBackground(Void... voids) {
+            Activity activity = weakActivity.get();
+            if (activity == null) {
+                return null;
+            }
+            try {
+                setting = CallMekone3();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return setting;
+        }
+    }
+
     public static Setting CallMekone2() throws IOException {
         try {
-            setting.Status = status;
-            setting.OnlineStatus = online;
-            setting.Notification = alert;
+            if(setting != null) {
+                setting.Status = "active";
+                setting.OnlineStatus = online;
+                setting.Notification = alert;
+            }
             URL url = new URL("http://mekonecampusapi.azurewebsites.net/api/Settings");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setDoOutput(true);
@@ -230,18 +270,55 @@ public class SettingActivity extends AppCompatActivity {
             ObjectMapper mapper = new ObjectMapper();
             String input = mapper.writeValueAsString(setting);
             OutputStream os = conn.getOutputStream();
-            os.write(input.getBytes());
+            //os.write(input.getBytes());
             os.write(input.getBytes("UTF-8"));
             os.flush();
 
-            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+            /*if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 throw new RuntimeException("Failed : HTTP error code : "
                         + conn.getResponseCode());
-            }
+            }*/
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     (conn.getInputStream())));
             String output;
-            //System.out.println("Output from Server .... \n");
+            while ((output = br.readLine()) != null) {
+                setting = mapper.readValue(output, new TypeReference<Setting>() {});
+            }
+            conn.disconnect();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return setting;
+    }
+
+    public static Setting CallMekone3() throws IOException {
+        try {
+            if(setting != null) {
+                setting.Status = "active";
+                setting.OnlineStatus = status;
+                setting.Notification = alert;
+            }
+            URL url = new URL("http://mekonecampusapi.azurewebsites.net/api/Settings");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);
+            conn.setRequestMethod("PUT");
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            ObjectMapper mapper = new ObjectMapper();
+            String input = mapper.writeValueAsString(setting);
+            OutputStream os = conn.getOutputStream();
+            //os.write(input.getBytes());
+            os.write(input.getBytes("UTF-8"));
+            os.flush();
+
+            /*if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new RuntimeException("Failed : HTTP error code : "
+                        + conn.getResponseCode());
+            }*/
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output;
             while ((output = br.readLine()) != null) {
                 setting = mapper.readValue(output, new TypeReference<Setting>() {});
             }
